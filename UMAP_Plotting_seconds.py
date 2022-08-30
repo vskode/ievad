@@ -1,28 +1,32 @@
 # Written by Avery Bick, June 2021
+# Modified by Vincent Kather, August 2022
 # Adapted from UMAP documentation: https://umap-learn.readthedocs.io/en/latest/supervised.html
 """
 Apply UMAP dimensionality reduction to Audioset embeddings
 """
 
 from __future__ import division
-import umap
-import pickle
-import pandas as pd
-import numpy as np
 import sys
+import umap
+import dash
 import glob
+import yaml
+import pickle
+import numpy as np
+import pandas as pd
 import librosa as lb
 import sounddevice as sd
- 
-import plotly.express as px
-import dash
-from dash.dependencies import Input, Output
-
 import plotly.express as px
 import plotly.graph_objects as go
+from dash.dependencies import Input, Output
+ 
+with open('config.yaml', 'rb') as f:
+    config = yaml.safe_load(f)
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 10)
+
+
 
 def splitEmbeddingsByColumnValue(df, column):
 	dfs = [d for _, d in df.groupby([column])]
@@ -86,7 +90,7 @@ def plot_wo_specs(data, timeLabels, title, centroids, classes):
     fig.write_html('Interactive_Plot.html')
     
 def create_timeList(lengths, files):
-    lin_array = np.linspace(0, 599, lengths[2])
+    lin_array = np.linspace(0, 599, lengths[0])
     files_array = []
     divisions_array = []
     for i in range(len(lengths)):
@@ -131,7 +135,7 @@ def plotUMAP_Continuous_plotly(audioEmbeddingsList, percentiles, title,
     app.layout = dash.html.Div(
         [
             dash.html.Div([
-                dash.html.H1(children='UMAP Embedding for {}'.format(title)),
+                dash.html.H1(children=title),
                 dash.dcc.Graph(
                     id="bar_chart",
                     figure = px.scatter(data, x='x', y='y', color=timeLabels, 
@@ -187,7 +191,7 @@ def play_audio(audio, sr):
     
 def load_audio(t, file):
     file_stem = file.split('data')[-1].split('.pickle')[0][1:]
-    main_path = '/home/vincent/Music/conf/'
+    main_path = config['raw_data_path']
 
     minu = int(t.split(':')[0])
     sec = int(t.split(':')[1].split('.')[0])/60
@@ -209,13 +213,13 @@ def create_specs(audio, file_stem, t):
 
 
 def get_embeddings():
-    folders = glob.glob('../data/*Moth*')[1:]
+    folders = glob.glob(config['pickled_data_path'])
     df_all = pd.DataFrame()
     file_list= []
     lenghts = []
     
     for folder in folders:
-        files = glob.glob(folder + '/*.pickle')[1:]
+        files = glob.glob(folder + '/*.pickle')
         files = np.sort(files).astype(list)
         
         for file in files:
@@ -235,7 +239,7 @@ if __name__ == "__main__":
     df_all, folders, file_list, lenghts = get_embeddings()
     percentiles = 24
     plotUMAP_Continuous_plotly(df_all['embeddings'].tolist(), 
-                            percentiles, f'Aug2-Aug3 + {folders}', 
+                            percentiles, config['title'], 
                             'plasma', file_list, lenghts)
 
     sys.exit()
