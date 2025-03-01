@@ -17,7 +17,8 @@ export const MainLayout = ({ width = 700, height = 400 }) => {
     { id: "model_name", label: "model-dataset-dimreduction", checked: true },
   ]);
   // const path = { "path": "files/embeddings/CallType_umap/" };
-  const path = { "path": "files/embeddings/dcase/dcase/" };
+  // const path = { "path": "files/embeddings/dcase/dcase/" };
+  const path = { "path": "files/embeddings/colombia-umap/" };
 
   const enrichDict = (dict) => {
     let lengths = dict[`metadata`][`file_lengths (s)`];
@@ -74,7 +75,7 @@ export const MainLayout = ({ width = 700, height = 400 }) => {
           let response_dict = {};
           let model_array = [];
           dicts = await getDictionaries();
-          const labels = await axios.get('files/embeddings/dcase/labels.json')
+          const labels = await axios.get('files/embeddings/colombia/labels.json')
           for (let i = 0; i < dicts.length; i++) {
             console.log("Fetching file from:", dicts[i]); // Log file path being requested
             const embedding = await axios.get(dicts[i]);

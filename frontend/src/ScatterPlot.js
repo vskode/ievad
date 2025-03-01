@@ -48,15 +48,37 @@ export const ScatterPlot = ({
   useEffect(() => {
     const svgElement = d3.select(axesRef.current);
     svgElement.selectAll("*").remove();
-    const xAxisGenerator = d3.axisBottom(xScale);
-    svgElement
-      .append("g")
-      .attr("transform", "translate(0," + boundsHeight + ")")
-      .call(xAxisGenerator);
+  
+    // X Axis (Bottom)
+    const xAxisBottom = d3.axisBottom(xScale).tickFormat(""); // No numbers
+    svgElement.append("g")
+      .attr("transform", `translate(0, ${boundsHeight})`)
+      .call(xAxisBottom)
+      .selectAll("text").remove();
+  
+    // X Axis (Top) - Just a Line
+    svgElement.append("g")
+      .attr("transform", `translate(0, 0)`) // Move to top
+      .call(d3.axisTop(xScale).tickFormat("")) // No numbers
+      .selectAll("text").remove();
+  
+    // Y Axis (Left)
+    const yAxisLeft = d3.axisLeft(yScale).tickFormat("");
+    svgElement.append("g")
+      .call(yAxisLeft)
+      .selectAll("text").remove();
+  
+    // Y Axis (Right) - Just a Line
+    svgElement.append("g")
+      .attr("transform", `translate(${boundsWidth}, 0)`) // Move to right
+      .call(d3.axisRight(yScale).tickFormat("")) // No numbers
+      .selectAll("text").remove();
 
-    const yAxisGenerator = d3.axisLeft(yScale);
-    svgElement.append("g").call(yAxisGenerator);
-  }, [xScale, yScale, boundsHeight]);
+      svgElement.selectAll(".tick line").style("display", "none"); // Hide tick marks
+
+  }, [xScale, yScale, boundsHeight, boundsWidth]);
+  
+  
 
 
   const onMouseOverCircle = (e, plotId) => {
@@ -76,44 +98,51 @@ const onMouseLeavePlot = () => {
 
 useEffect(() => {
   if (globalTimestamp === null) return;
-  
-  // Ensure plotId is properly passed and avoid updating hovered plot
+
+  // Don't update the actively hovered plot to prevent flickering
   if (plotId !== undefined && plotId === hoveredPlotId) return;
-  
-  // Find the closest timestamp in this plot's data
+
+  // Find the closest timestamp in this plot
   const closestIndex = data.timestamps.reduce((bestIdx, ts, idx) => 
     Math.abs(ts - globalTimestamp) < Math.abs(data.timestamps[bestIdx] - globalTimestamp) ? idx : bestIdx, 
-  0
-);
+  0);
 
-  dataIndex.current = closestIndex; // update dataIndex of current plot
-  console.log("Closest index:", closestIndex);
-}, [globalTimestamp]); // Only update when globalTimestamp changes
+  dataIndex.current = closestIndex; // Force update for all plots
+  console.log(`Plot ${plotId} updated to timestamp:`, globalTimestamp);
+}, [globalTimestamp]); // Ensure this re-runs when `globalTimestamp` changes
+
   
-  const handleClick = (event, index) => {
-    console.log("Clicked on circle:", index);
-    const dataPoint = {
-      'x': data.x[index],
-      'y': data.y[index],
-      'z': data.time_within_file[index],
-      'source_file': data.audio_filenames[index],
-      'meta': data.metadata,
-      'index': index,
-      'label': data.label[index]
-    };
-    event.stopPropagation();  // Prevent event from being swallowed by other elements
-    console.log("Circle clicked:", dataPoint);
-    const url = "http://127.0.0.1:8000/";
-    axios.post(url+'getDataPoint/', dataPoint)
-    .then(response => {
-      console.log(response.data)
-      setSpecData(response.data.spectrogram_data)
-    })
-    .catch(function (error) {
-      // handle error
-      console.log(error);
-    })
+const handleClick = (event, index) => {
+  console.log("Clicked on circle:", index);
+
+  // Force sync across plots
+  const newTimestamp = data.timestamps[index];  
+  setGlobalTimestamp(newTimestamp); // Update global timestamp immediately
+
+  const dataPoint = {
+    'x': data.x[index],
+    'y': data.y[index],
+    'z': data.time_within_file[index],
+    'source_file': data.audio_filenames[index],
+    'meta': data.metadata,
+    'index': index,
+    'label': data.label[index]
   };
+
+  event.stopPropagation();  // Prevent event from being swallowed by other elements
+  console.log("Circle clicked:", dataPoint);
+  
+  const url = "http://127.0.0.1:8000/";
+  axios.post(url + 'getDataPoint/', dataPoint)
+    .then(response => {
+      console.log(response.data);
+      setSpecData(response.data.spectrogram_data);
+    })
+    .catch(error => {
+      console.log(error);
+    });
+};
+
 
   const points = useMemo(() => {
     const pts = [];
@@ -138,95 +167,52 @@ useEffect(() => {
     // console.log("current point:", dataIndex.current);
     return pts;
   }, [data, xScale, yScale]);
-      
-  // const Cursor = ({ x, y, color, index }) => {
   const Cursor = ({ index, data }) => {
     const x = xScale(data.x[index]);
     const y = yScale(data.y[index]);
     const color = toColor(data.label[index]);
-
-    const time_within_file = data.time_within_file[index];
-    const source_file = data.audio_filenames[index];
-    const time_accum = data.timestamps[index];
-
   
-    const width =  50;
-    const height = 50;
-    // console.log("Cursor:", x, y, color, index);
+    const time_within_file = data.time_within_file[index].toFixed(2);
+    const source_file = data.audio_filenames[index];
+    const time_accum = data.timestamps[index].toFixed(2);
+  
     return (
       <>
-        <circle 
-          cx={x} 
-          cy={y} 
-          r={3} 
-          // fill={color}
-          fill="black"
-          onClick={(e) => handleClick(e, index)}
-        />
-        {/* <rect 
-          x={x-width} 
-          y={y-height} 
-          width={width} 
-          height={height} 
-          fill="#AAAAAA"
-          visibility={'visible'}></rect> */}
-        {/* <text 
-          x={x-width+2} 
-          y={y-height+12} 
-          fontFamily="Verdana" 
-          fontSize="12" 
-          fill="white">{index}</text> */}
-          <text 
-            // x={width - 30} 
-            y={height + 270} 
-            fontFamily="Verdana" 
-            fontSize="12" 
-            fill="black"
-          >
-            <tspan x={width - 20} dy="1.2em">
-              Time within file: {time_within_file.toFixed(2)}
-            </tspan>
-            <tspan x={width - 20} dy="1.2em">
-              Source file: {source_file}
-            </tspan>
-            <tspan x={width - 20} dy="1.2em">
-              Time accum: {time_accum.toFixed(2)}
-            </tspan>
-          </text>
-
+        {/* Cursor circle inside the plot */}
+        <circle cx={x} cy={y} r={3} fill="black" onClick={(e) => handleClick(e, index)} />
+        
+        {/* Display text BELOW the plot */}
+        <div style={{ textAlign: "left", marginTop: "10px", fontFamily: "Verdana", fontSize: "12px" }}>
+          <p><strong>Model:</strong> {data.metadata.model_name}</p>
+          <p><strong>Time within file:</strong> {time_within_file} sec</p>
+          <p><strong>Source file:</strong> {source_file}</p>
+          <p><strong>Time accumulated:</strong> {time_accum} sec</p>
+        </div>
       </>
     );
   };
-
+  
   return (
-    <div>
-      <svg 
-        width={width} 
-        height={height} 
-        style={{ pointerEvents: "all" }}
-        onMouseLeave={onMouseLeavePlot}
-      >
-
-        <g
-          width={boundsWidth}
-          height={boundsHeight}
-          transform={`translate(${[MARGIN.left, MARGIN.top].join(",")})`}
-        >
+    <div style={{ textAlign: "center" }}> {/* Center the plot and text */}
+      <svg width={width} height={height} onMouseLeave={onMouseLeavePlot}>
+        <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
           {points}
-          {dataIndex.current && (
-            <Cursor
-              index={dataIndex.current}
-              data={data}
-            />
-          )}
+          {dataIndex.current && <Cursor index={dataIndex.current} data={data} />}
         </g>
-        <g
-          width={boundsWidth}
-          height={boundsHeight}
-          ref={axesRef}
-          transform={`translate(${[MARGIN.left, MARGIN.top].join(",")})`}
-        />
+        <g ref={axesRef} transform={`translate(${MARGIN.left}, ${MARGIN.top})`} />
       </svg>
+  
+      {/* Text container BELOW the plot */}
+      {dataIndex.current !== null && (
+        <div style={{ marginTop: "10px", fontFamily: "Verdana", fontSize: "12px", textAlign: "center" }}>
+          <p><strong>Model:</strong> {data.metadata.model_name}</p>
+          <p><strong>Time within file:</strong> {data.time_within_file[dataIndex.current].toFixed(2)} sec</p>
+          <p><strong>Source file:</strong> {data.audio_filenames[dataIndex.current]}</p>
+          <p><strong>Time accumulated:</strong> {data.timestamps[dataIndex.current].toFixed(2)} sec</p>
+        </div>
+      )}
     </div>
   );
+  
+  
 }

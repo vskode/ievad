@@ -26,6 +26,7 @@ yarn-error.log*
 *__pycache__*
 files/embeds/*
 files/umap_embeds/*
+frontend/src/
 backend/ievad/models/*
 ievad/files/audio/*
 # files/raw/*
