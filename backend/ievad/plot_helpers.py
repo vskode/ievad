@@ -88,7 +88,8 @@ def load_audio(t_s, file, sr, segment_length):
     if not isinstance(t_s, float):
         t_s = time_string_to_float(t_s)
     
-    audio, sr = lb.load(main_path.joinpath(file_stem), 
+    # audio, sr = lb.load(main_path.joinpath(file_stem), 
+    audio, sr = lb.load(file, 
                         offset=t_s, 
                         sr=sr, 
                         duration = segment_length)
