@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-export const enrichDict = (dict) => {
+export const buildEmbeddingVectors = (dict) => {
   const lengths = dict.metadata['file_lengths (s)'];
   const dims = dict.metadata['embedding_dimensions'];
   const audiofiles = dict.metadata['audio_files'];
@@ -47,19 +47,17 @@ export const useDataFetcher = (path, items, setItems) => {
         // const getDictionaries = async () => {
         let dicts = [];
         try {
-        // const url = "http://127.0.0.1:8000/getEmbedPaths/";
-        if (model_name !== null) {
-            path['model_name'] = model_name;
-        }
-        const url = `http://127.0.0.1:8000/${getWhat}/`;
-        // const url = `http://127.0.0.1:8000/getDictionaries/`;
-        const response = await axios.post(url, path);
-        console.log("Dictionaries received:", response.data.dicts); // Log response
-        dicts = response.data.dict; // Update dictionaries state
-        
-        return dicts;
+            if (model_name !== null) {
+                path['model_name'] = model_name;
+            }
+            const url = `http://127.0.0.1:8000/${getWhat}/`;
+            const response = await axios.post(url, path);
+            console.log("Dictionaries received:", response.data.dicts); // Log response
+            dicts = response.data.dict; // Update dictionaries state
+            
+            return dicts;
         } catch (error) {
-        console.error("Error fetching dictionaries:", error);
+            console.error("Error fetching dictionaries:", error);
         }
         return;
     };
@@ -91,7 +89,7 @@ export const useDataFetcher = (path, items, setItems) => {
               {length: response_dict[model_name]['data'].x.length}, 
               (_, n) => n
             );  
-            response_dict[model_name].data = enrichDict(response_dict[model_name].data);
+            response_dict[model_name].data = buildEmbeddingVectors(response_dict[model_name].data);
 
             response_dict[model_name]['data'].labels = labels;
             
